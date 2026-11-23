@@ -5,39 +5,39 @@ from .models import Note, NoteLink
 
 
 def build_graph():
-    G = nx.Graph()
+    graph = nx.DiGraph()
 
-    # Add database records as nodes
+    # Every note becomes a node.
     for note in Note.objects.all():
-        G.add_node(
+        graph.add_node(
             str(note.id),
             label=note.title,
-            category=note.category
+            category=note.category,
         )
 
-    # Add relationships as edges
-    for link in NoteLink.objects.all():
-        G.add_edge(
+    # Every NoteLink becomes a directed connection.
+    for link in NoteLink.objects.select_related("source", "target"):
+        graph.add_edge(
             str(link.source_id),
             str(link.target_id),
-            relationship=link.relationship
+            relationship=link.relationship,
         )
 
-    return G
+    return graph
 
 
 def get_graph_data():
-    G = build_graph()
+    graph = build_graph()
 
     nodes = [
         {
             "data": {
-                "id": node,
+                "id": node_id,
                 "label": attributes["label"],
-                "category": attributes["category"]
+                "category": attributes["category"],
             }
         }
-        for node, attributes in G.nodes(data=True)
+        for node_id, attributes in graph.nodes(data=True)
     ]
 
     edges = [
@@ -46,12 +46,10 @@ def get_graph_data():
                 "id": f"{source}-{target}",
                 "source": source,
                 "target": target,
-                "label": attributes["relationship"]
+                "label": attributes["relationship"],
             }
         }
-        for source, target, attributes in G.edges(data=True)
+        for source, target, attributes in graph.edges(data=True)
     ]
 
-    return {
-        "elements": nodes + edges
-    }
+    return {"elements": nodes + edges}
